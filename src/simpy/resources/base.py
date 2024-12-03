@@ -55,7 +55,8 @@ class Put(Event, ContextManager['Put'], Generic[ResourceType]):
         method is called automatically.
 
         """
-        pass
+        if self.resource.put_queue and self in self.resource.put_queue:
+            self.resource.put_queue.remove(self)
 
 class Get(Event, ContextManager['Get'], Generic[ResourceType]):
     """Generic event for requesting to get something from the *resource*.
@@ -98,7 +99,8 @@ class Get(Event, ContextManager['Get'], Generic[ResourceType]):
         method is called automatically.
 
         """
-        pass
+        if self.resource.get_queue and self in self.resource.get_queue:
+            self.resource.get_queue.remove(self)
 PutType = TypeVar('PutType', bound=Put)
 GetType = TypeVar('GetType', bound=Get)
 
@@ -137,20 +139,20 @@ class BaseResource(Generic[PutType, GetType]):
     @property
     def capacity(self) -> Union[float, int]:
         """Maximum capacity of the resource."""
-        pass
+        return self._capacity
     if TYPE_CHECKING:
 
         def put(self) -> Put:
             """Request to put something into the resource and return a
             :class:`Put` event, which gets triggered once the request
             succeeds."""
-            pass
+            return Put(self)
 
         def get(self) -> Get:
             """Request to get something from the resource and return a
             :class:`Get` event, which gets triggered once the request
             succeeds."""
-            pass
+            return Get(self)
     else:
         put = BoundClass(Put)
         get = BoundClass(Get)
@@ -166,7 +168,10 @@ class BaseResource(Generic[PutType, GetType]):
         :attr:`put_queue`, as long as the return value does not evaluate
         ``False``.
         """
-        pass
+        if len(self.put_queue) > 0:
+            event.succeed()
+            return True
+        return False
 
     def _trigger_put(self, get_event: Optional[GetType]) -> None:
         """This method is called once a new put event has been created or a get
@@ -176,7 +181,15 @@ class BaseResource(Generic[PutType, GetType]):
         calls :meth:`_do_put` to check if the conditions for the event are met.
         If :meth:`_do_put` returns ``False``, the iteration is stopped early.
         """
-        pass
+        idx = 0
+        while idx < len(self.put_queue):
+            put_event = self.put_queue[idx]
+            if not self._do_put(put_event):
+                break
+            idx += 1
+        
+        if idx > 0:
+            del self.put_queue[:idx]
 
     def _do_get(self, event: GetType) -> Optional[bool]:
         """Perform the *get* operation.
@@ -189,7 +202,10 @@ class BaseResource(Generic[PutType, GetType]):
         :attr:`get_queue`, as long as the return value does not evaluate
         ``False``.
         """
-        pass
+        if len(self.get_queue) > 0:
+            event.succeed()
+            return True
+        return False
 
     def _trigger_get(self, put_event: Optional[PutType]) -> None:
         """Trigger get events.
@@ -201,4 +217,12 @@ class BaseResource(Generic[PutType, GetType]):
         calls :meth:`_do_get` to check if the conditions for the event are met.
         If :meth:`_do_get` returns ``False``, the iteration is stopped early.
         """
-        pass
+        idx = 0
+        while idx < len(self.get_queue):
+            get_event = self.get_queue[idx]
+            if not self._do_get(get_event):
+                break
+            idx += 1
+        
+        if idx > 0:
+            del self.get_queue[:idx]
