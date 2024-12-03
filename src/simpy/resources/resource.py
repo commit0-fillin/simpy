@@ -123,7 +123,10 @@ class SortedQueue(list):
         Raise a :exc:`RuntimeError` if the queue is full.
 
         """
-        pass
+        if self.maxlen is not None and len(self) >= self.maxlen:
+            raise RuntimeError('Queue is full')
+        super().append(item)
+        self.sort(key=lambda x: x.key)
 
 class Resource(base.BaseResource):
     """Resource with *capacity* of usage slots that can be requested by
@@ -149,16 +152,16 @@ class Resource(base.BaseResource):
     @property
     def count(self) -> int:
         """Number of users currently using the resource."""
-        pass
+        return len(self.users)
     if TYPE_CHECKING:
 
         def request(self) -> Request:
             """Request a usage slot."""
-            pass
+            return Request(self)
 
         def release(self, request: Request) -> Release:
             """Release a usage slot."""
-            pass
+            return Release(self, request)
     else:
         request = BoundClass(Request)
         release = BoundClass(Release)
@@ -182,11 +185,11 @@ class PriorityResource(Resource):
 
         def request(self, priority: int=0, preempt: bool=True) -> PriorityRequest:
             """Request a usage slot with the given *priority*."""
-            pass
+            return PriorityRequest(self, priority=priority, preempt=preempt)
 
         def release(self, request: PriorityRequest) -> Release:
             """Release a usage slot."""
-            pass
+            return Release(self, request)
     else:
         request = BoundClass(PriorityRequest)
         release = BoundClass(Release)
