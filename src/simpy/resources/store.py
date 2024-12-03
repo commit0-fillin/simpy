@@ -67,11 +67,11 @@ class Store(base.BaseResource):
 
         def put(self, item: Any) -> StorePut:
             """Request to put *item* into the store."""
-            pass
+            return StorePut(self, item)
 
         def get(self) -> StoreGet:
             """Request to get an *item* out of the store."""
-            pass
+            return StoreGet(self)
     else:
         put = BoundClass(StorePut)
         get = BoundClass(StoreGet)
@@ -129,6 +129,6 @@ class FilterStore(Store):
         def get(self, filter: Callable[[Any], bool]=lambda item: True) -> FilterStoreGet:
             """Request to get an *item*, for which *filter* returns ``True``,
             out of the store."""
-            pass
+            return FilterStoreGet(self, filter)
     else:
         get = BoundClass(FilterStoreGet)
